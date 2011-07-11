@@ -1,31 +1,77 @@
 # dependencies: gcc g++ libtool automake autoconf
 
+# Pre: Setup variables
+BASEDIR=$2
+mkdir $BASEDIR
+mkdir $BASEDIR/archives
+
 # Step 1a: Obtain kernel source
-mkdir $2
 echo -e "\e[1;37m*** Step 1a:\e[0m \"Git\"ting Linux kernel source."
 echo -e "\e[1;36mNote:\e[0m This may take a long time."
-git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git $2/src/linux
+git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git $BASEDIR/src/linux
 # Step 1b: Install kernel source
-cd $2/src/linux
+cd $BASEDIR/src/linux
 echo -e "\e[1;37m*** Step 1b:\e[0m Installing kernel source."
-install -dv $2/tools/include
+install -dv $BASEDIR/tools/include
 make mrproper
 # TODO: Fix Arch to only accept acceptable values
 make ARCH=$1 headers_check
 make ARCH=$1 INSTALL_HDR_PATH=dest headers_install
-cp -rv dest/include/* $2/tools/include
+cp -rv dest/include/* $BASEDIR/tools/include
+echo
 
 # Step 2a: Obtain GNU MP source
 echo -e "\e[1;37m*** Step 2a:\e[0m Obtaining GNU MP source."
-hg clone http://gmplib.org:8000/gmp $2/src/gmp
+hg clone http://gmplib.org:8000/gmp $BASEDIR/src/gmp
 # Step 2b: Configure GNU MP
 echo -e "\e[1;37m*** Step 2b:\e[0m Configure GNU MP."
-cd $2/src/gmp
+cd $BASEDIR/src/gmp
 ./.bootstrap
-CPPFLAGS=-fexceptions ./configure --prefix=$2 --enable-cxx
+CPPFLAGS=-fexceptions ./configure --prefix=$BASEDIR --enable-cxx
 # Step 2c: Build GNU MP
 echo -e "\e[1;37m*** Step 2c:\e[0m Build GNU MP."
 make && make install
+echo
 
 # Step 3a: Obtain MPFR source
-echo -e "\e[1;37m*** Step 2a:\e[0m Obtaining GNU MPFR source."
+echo -e "\e[1;37m*** Step 3a:\e[0m Obtaining GNU MPFR source."
+svn checkout svn://scm.gforge.inria.fr/svn/mpfr/trunk $BASEDIR/src/mpfr
+# Step 3b: Configure MPFR source
+echo -e "\e[1;37m*** Step 3b:\e[0m Configure GNU MPFR."
+cd $BASEDIR/src/mpfr
+autoreconf -i
+LDFLAGS="-Wl,-rpath,$BASEDIR/lib" ./configure --prefix=$BASEDIR --enable-shared --with-gmp=$BASEDIR
+# Step 3c: Build MPFR
+echo -e "\e[1;37m*** Step 3c:\e[0m Build GNU MPFR."
+make && make install
+echo
+
+# Step 4a: Obtain MPC source
+echo -e "\e[1;37m*** Step 4a:\e[0m Obtaining MPC source."
+svn checkout svn://scm.gforge.inria.fr/svn/mpc/trunk $BASEDIR/src/mpc
+# Step 4b: Configure MPC source
+echo -e "\e[1;37m*** Step 4b:\e[0m Configuring MPC."
+cd $BASEDIR/src/mpc
+autoreconf -i
+LDFLAGS="-Wl,-rpath,$BASEDIR/lib" ./configure --prefix=$BASEDIR --with-gmp=$BASEDIR --with-mpfr=$BASEDIR
+# Step 4c: Build MPC
+echo -e "\e[1;37m*** Step 4c:\e[0m Building MPC."
+make && make install
+echo
+
+# Step 5a: Obtain PPL source
+echo -e "\e[1;37m*** Step 5a:\e[0m Obtaining parma polyhedra library source."
+echo -e "\e[1;31mOh fudge!\e[0m GCC requires PPL v0.11. Fetching release archive."
+cd $BASEDIR/archives
+wget http://www.cs.unipr.it/ppl/Download/ftp/releases/0.11.2/ppl-0.11.2.tar.gz
+cd $BASEDIR/src
+tar -zxvf ../archives/ppl-0.11.2.tar.gz
+mv ppl-0.11.2 ppl
+# Step 5b: Configure PPL source
+echo -e "\e[1;37m*** Step 5b:\e[0m Configuring PPL."
+cd $BASEDIR/src/ppl
+CPPFLAGS="-I$BASEDIR/include" LDFLAGS="-Wl,-rpath,$BASEDIR/lib" ./configure --prefix=$BASEDIR --enable-shared --enable-interfaces="c,cxx" --disable-optimization --with-libgmp-prefix=$BASEDIR --with-libgmpxx-prefix=$BASEDIR
+# Step 5c: Build MPC
+echo -e "\e[1;37m*** Step 5c:\e[0m Building PPL."
+make && make install
+echo
