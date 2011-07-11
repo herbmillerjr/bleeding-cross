@@ -1,0 +1,31 @@
+# dependencies: gcc g++ libtool automake autoconf
+
+# Step 1a: Obtain kernel source
+mkdir $2
+echo -e "\e[1;37m*** Step 1a:\e[0m \"Git\"ting Linux kernel source."
+echo -e "\e[1;36mNote:\e[0m This may take a long time."
+git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git $2/src/linux
+# Step 1b: Install kernel source
+cd $2/src/linux
+echo -e "\e[1;37m*** Step 1b:\e[0m Installing kernel source."
+install -dv $2/tools/include
+make mrproper
+# TODO: Fix Arch to only accept acceptable values
+make ARCH=$1 headers_check
+make ARCH=$1 INSTALL_HDR_PATH=dest headers_install
+cp -rv dest/include/* $2/tools/include
+
+# Step 2a: Obtain GNU MP source
+echo -e "\e[1;37m*** Step 2a:\e[0m Obtaining GNU MP source."
+hg clone http://gmplib.org:8000/gmp $2/src/gmp
+# Step 2b: Configure GNU MP
+echo -e "\e[1;37m*** Step 2b:\e[0m Configure GNU MP."
+cd $2/src/gmp
+./.bootstrap
+CPPFLAGS=-fexceptions ./configure --prefix=$2 --enable-cxx
+# Step 2c: Build GNU MP
+echo -e "\e[1;37m*** Step 2c:\e[0m Build GNU MP."
+make && make install
+
+# Step 3a: Obtain MPFR source
+echo -e "\e[1;37m*** Step 2a:\e[0m Obtaining GNU MPFR source."
